@@ -98,60 +98,9 @@ numerical_features = [
     ]
 categorical_features = [
     "gender",
-    # "region"
     ]
 textual_features = [
-    # "body",
-    # "I_am_working_in_field",
-    # "spoken_languages",
-    # "hobbies",
-    # "I_most_enjoy_good_food",
-    # "pets",
-    # "body_type",
-    # "my_eyesight",
-    # "eye_color",
-    # "hair_color",
-    # "hair_type",
-    # "completed_level_of_education",
-    # "favourite_color",
-    # "relation_to_smoking",
     "relation_to_alcohol",
-    # "sign_in_zodiac",
-    # "on_pokec_i_am_looking_for",
-    # "love_is_for_me",
-    # "relation_to_casual_sex",
-    # "my_partner_should_be",
-    # "marital_status",
-    # "children",
-    # "relation_to_children",
-    # "I_like_movies",
-    # "I_like_watching_movie",
-    # "I_like_music",
-    # "I_mostly_like_listening_to_music",
-    # "the_idea_of_good_evening",
-    # "I_like_specialties_from_kitchen",
-    # "fun",
-    # "I_am_going_to_concerts",
-    # "my_active_sports",
-    # "my_passive_sports",
-    # "profession",
-    # "I_like_books"
-    # "life_style",
-    # "music",
-    # "cars",
-    # "politics",
-    # "relationships",
-    # "art_culture",
-    # "hobbies_interests",
-    # "science_technologies",
-    # "computers_internet",
-    # "education",
-    # "sport",
-    # "movies",
-    # "travelling",
-    # "health",
-    # "companies_brands",
-    # "more"
 ]
 
 
@@ -603,12 +552,9 @@ def run_sus_var(test_sus, innate_opinions, network_lcc, nodelist, model_name, X_
 def create_plot():
 
     param_folder = "pokec_dataset/parametric_params/"
-    # for test_sus in ["platform", "peer"]:
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
 
     enforced_sus = np.arange(0.0, 1.1, 0.1)
-    # models = ["perfect", "ridge", "neural_net", "mean"]
-    # models = ["perfect", "ridge", "neural_net", "mean"]
     models = ["perfect", "ridge", "neural_net", "mean"]
     labels = ["Perfect", "OLS", "MLP", "Mean"]
     
@@ -617,10 +563,7 @@ def create_plot():
     for i in range(len(models)):
         with open("pokec_dataset/results/variance_" + models[i] + "_" + "platform" + ".pk", "rb") as f:
             variances = pickle.load(f)
-            # if i == 1:
-            #     print(variances)
-            # if i ==3:
-            #     print(variances)
+            
 
         ax.plot(enforced_sus, variances, linewidth=1.5, label=labels[i], color=colors[i], linestyle="-")
     ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
