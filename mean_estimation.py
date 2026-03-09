@@ -193,8 +193,7 @@ def main():
 
 
     labels = {"mean": "Mean", "perfect": "Perfect", "ridge": "OLS", "neural_net": "MLP"}
-    # "perfect", "mean", "ridge", 
-    for model_name in ["neural_net"]:
+    for model_name in ["perfect", "mean", "ridge", "neural_net"]:
         if os.path.exists(results_folder / f"{model_name}_sl_modified_stubborn_whole_record{retrain_T}.pk"):
             print("Results already exist. Skipping simulation.")
             with open(results_folder / f"{model_name}_sl_modified_stubborn_whole_record{retrain_T}.pk", "rb") as f:
@@ -248,37 +247,21 @@ def main():
             
         x = np.arange(retrain_T + 1)
         stubborn_path = modified_record[stubborn_idx, :]
-        # original_equilibrium = baseline_record[stubborn_idx, -1]
         original_path = baseline_record[stubborn_idx, :]
 
         plt.figure()
         plt.plot(
             x,
             stubborn_path,
-            # marker="o",
-            # markersize=3,
-            # linewidth=1.8,
             color="tab:blue",
             label=labels[model_name] + r" $\tilde{x}^*$",
         )
         plt.plot(
             x,
             original_path,
-            # marker="o",
-            # markersize=3,
-            # linewidth=1.8,
             color="tab:orange",
             label=labels[model_name] + r" $x^*$",
         )
-        # plt.hlines(
-        #     y=original_equilibrium,
-        #     xmin=0,
-        #     xmax=retrain_T,
-        #     linestyle="--",
-        #     linewidth=1.5,
-        #     color="tab:red",
-        #     label="Original equilibrium (unmodified innate opinions)",
-        # )
 
         plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
         plt.xlabel(r"Retraining step $t$", fontsize=18)
