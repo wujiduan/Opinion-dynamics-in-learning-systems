@@ -99,9 +99,60 @@ numerical_features = [
     ]
 categorical_features = [
     "gender",
+    # "region"
     ]
 textual_features = [
+    # "body",
+    # "I_am_working_in_field",
+    # "spoken_languages",
+    # "hobbies",
+    # "I_most_enjoy_good_food",
+    # "pets",
+    # "body_type",
+    # "my_eyesight",
+    # "eye_color",
+    # "hair_color",
+    # "hair_type",
+    # "completed_level_of_education",
+    # "favourite_color",
+    # "relation_to_smoking",
     "relation_to_alcohol",
+    # "sign_in_zodiac",
+    # "on_pokec_i_am_looking_for",
+    # "love_is_for_me",
+    # "relation_to_casual_sex",
+    # "my_partner_should_be",
+    # "marital_status",
+    # "children",
+    # "relation_to_children",
+    # "I_like_movies",
+    # "I_like_watching_movie",
+    # "I_like_music",
+    # "I_mostly_like_listening_to_music",
+    # "the_idea_of_good_evening",
+    # "I_like_specialties_from_kitchen",
+    # "fun",
+    # "I_am_going_to_concerts",
+    # "my_active_sports",
+    # "my_passive_sports",
+    # "profession",
+    # "I_like_books"
+    # "life_style",
+    # "music",
+    # "cars",
+    # "politics",
+    # "relationships",
+    # "art_culture",
+    # "hobbies_interests",
+    # "science_technologies",
+    # "computers_internet",
+    # "education",
+    # "sport",
+    # "movies",
+    # "travelling",
+    # "health",
+    # "companies_brands",
+    # "more"
 ]
 
 
@@ -551,7 +602,6 @@ def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_f
             peer_sus = pickle.load(file)
 
     
-    # platform_sus[stubborn_node] = 0.
     if strong_perform:
         results_folder = "pokec_dataset/results_strong_perform/"
         platform_sus = np.ones(agent_num)
@@ -586,11 +636,12 @@ def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_f
         plt.hlines(y=FJ_equilibrium[stubborn_node], xmin=1, xmax=retrain_T, linestyle='--', label=r"(FJ($x^*$)$)_l$")
         plt.hlines(y=whole_opinions_gamma0[stubborn_node, -1], xmin=1, xmax=retrain_T, linestyle='--', label=r"$(x_{ex}^{(T)})_l$ ($\gamma_k=0,k\neq j,l$)", color='orange')
         plt.xticks(range(1, retrain_T+1))
-        # plt.ylim(0,1)
         plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
         plt.ylabel("Opinion", fontsize=13)
         plt.legend(loc="upper left", bbox_to_anchor=(1,1), frameon=False, fontsize=10)
         plt.savefig(param_folder + model_name + "_parametric_steer_retrain_steps.pdf", bbox_inches='tight')
+
+    
 
 
 def plot_adjust(innate_opinions, policy, strong_perform):
@@ -605,7 +656,7 @@ def plot_adjust(innate_opinions, policy, strong_perform):
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
     models = ["perfect", "ridge", "neural_net", "mean"]
 
-    
+   
     x = np.arange(0, retrain_T+1)
     if policy == "steer":
     
@@ -663,7 +714,7 @@ def plot_adjust(innate_opinions, policy, strong_perform):
             if os.path.exists(results_folder + models[i] + "_" + policy + "_whole_record" + str(retrain_T) + ".pk"):
                 with open(results_folder + models[i] + "_" + policy + "_whole_record" + str(retrain_T) + ".pk", "rb") as f:
                     whole_opinions = pickle.load(f)
-               
+                
                 df[labels[i]] = whole_opinions[:, :]
                 
                 
@@ -689,7 +740,6 @@ def plot_adjust(innate_opinions, policy, strong_perform):
         models_u = [m for m in labels if m in stats["model"].unique()]
         print(models_u)
 
-        # offsets = np.linspace(-0.3, 0.3, len(models_u))  # dodge by model
 
         for m in models_u:
             s = stats[stats["model"] == m].copy()
@@ -712,7 +762,7 @@ def plot_adjust(innate_opinions, policy, strong_perform):
         ax.set_xticklabels(np.arange(retrain_T + 1)[::5], fontsize=12)
 
         plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
-        plt.ylabel(r"Opinion $x_{ex}^{(t)}$", fontsize=18)
+        plt.ylabel(r"Opinion after peer interaction, $x_{ex}^{(t)}$", fontsize=15)
         plt.xlabel(r"Retraining step $t$", fontsize=18)
         plt.yticks(fontsize=12)
         
@@ -785,7 +835,6 @@ def main():
 
     
     
-    # if os.path.exists("pokec_dataset/labled_feature_matrix_" + target_column + "_False" + ".pk"): 
     if os.path.exists("pokec_dataset/labeled_feature_matrix_" + target_column + "_" + str(include_graph_features) + ".pk"):
         print("Loading features")
         with open("pokec_dataset/labeled_feature_matrix_" + target_column + "_" + str(include_graph_features) + ".pk", "rb") as f:
@@ -807,8 +856,8 @@ def main():
     # computed sentiment scores are assumed to be innate opinions, x_star
     innate_opinions = np.array(y_label + y_unlabel_label)
     adjust_plot = True
-    policy = "steer"  # "sl" for supervised learning, "steer" for steering
-    strong_perform = False  # when it's true, platform_sus = 1 for all individuals
+    policy = "sl"  # "sl" for supervised learning, "steer" for steering
+    strong_perform = True  # when it's true, platform_sus = 1 for all individuals
     if adjust_plot:
         plot_adjust(innate_opinions, policy, strong_perform)
     else: 

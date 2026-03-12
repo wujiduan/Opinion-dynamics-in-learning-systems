@@ -98,9 +98,60 @@ numerical_features = [
     ]
 categorical_features = [
     "gender",
+    # "region"
     ]
 textual_features = [
+    # "body",
+    # "I_am_working_in_field",
+    # "spoken_languages",
+    # "hobbies",
+    # "I_most_enjoy_good_food",
+    # "pets",
+    # "body_type",
+    # "my_eyesight",
+    # "eye_color",
+    # "hair_color",
+    # "hair_type",
+    # "completed_level_of_education",
+    # "favourite_color",
+    # "relation_to_smoking",
     "relation_to_alcohol",
+    # "sign_in_zodiac",
+    # "on_pokec_i_am_looking_for",
+    # "love_is_for_me",
+    # "relation_to_casual_sex",
+    # "my_partner_should_be",
+    # "marital_status",
+    # "children",
+    # "relation_to_children",
+    # "I_like_movies",
+    # "I_like_watching_movie",
+    # "I_like_music",
+    # "I_mostly_like_listening_to_music",
+    # "the_idea_of_good_evening",
+    # "I_like_specialties_from_kitchen",
+    # "fun",
+    # "I_am_going_to_concerts",
+    # "my_active_sports",
+    # "my_passive_sports",
+    # "profession",
+    # "I_like_books"
+    # "life_style",
+    # "music",
+    # "cars",
+    # "politics",
+    # "relationships",
+    # "art_culture",
+    # "hobbies_interests",
+    # "science_technologies",
+    # "computers_internet",
+    # "education",
+    # "sport",
+    # "movies",
+    # "travelling",
+    # "health",
+    # "companies_brands",
+    # "more"
 ]
 
 
@@ -402,7 +453,8 @@ def run_simulation(
         policy,
         model_name,
         X_features_labeled,
-        X_features_unlabeled
+        X_features_unlabeled,
+        approximated_equilibrium
 ):
     agent_num = len(x_star)
     n = int(agent_num * 0.8)
@@ -416,42 +468,52 @@ def run_simulation(
         elif degs_inv[i] > 1.1:
             degs_inv[i] = 0.
     
-    whole_record = np.zeros((agent_num, retrain_steps+1))
-    x_labeled_prior = x_star[:n].copy()
-    x_unlabeled_prior = x_star[n:].copy()
-    whole_record[:, 0] = copy.deepcopy(x_star)
-    platform_predictions = np.zeros(agent_num)
-    for t in range(retrain_steps):
-         
-        if policy == 'sl':
-            # supervised learning policy
-            # assume the initial predictions are the innate opinions
-            platform_predictions[:n] = copy.deepcopy(x_labeled_prior)
-            if model_name == 'perfect':
-                platform_predictions[n:] = copy.deepcopy(x_unlabeled_prior)
+    if approximated_equilibrium:
+        whole_record = np.zeros((agent_num, retrain_steps+1))
+        x_labeled_prior = x_star[:n].copy()
+        x_unlabeled_prior = x_star[n:].copy()
+        whole_record[:, 0] = copy.deepcopy(x_star)
+        platform_predictions = np.zeros(agent_num)
+        for t in range(retrain_steps):
+            
+            if policy == 'sl':
+                # supervised learning policy
+                # assume the initial predictions are the innate opinions
+                platform_predictions[:n] = copy.deepcopy(x_labeled_prior)
+                if model_name == 'perfect':
+                    platform_predictions[n:] = copy.deepcopy(x_unlabeled_prior)
+                else:
+                    platform_predictions[n:] = predicting(model_name, X_features_labeled, x_labeled_prior, X_features_unlabeled)
+
             else:
-                platform_predictions[n:] = predicting(model_name, X_features_labeled, x_labeled_prior, X_features_unlabeled)
+                # steering policy
+                x_prior = np.concatenate((x_labeled_prior, x_unlabeled_prior))
+                platform_predictions = steering_params * steering_vector + np.diag(np.ones(agent_num) - steering_params) @ x_prior
+            x_zero = np.diag(np.ones(agent_num) - platform_params) @ x_star + platform_params * platform_predictions 
+            x_temp = copy.deepcopy(x_zero)
+            for k in range(fj_steps):
 
-        else:
-            # steering policy
-            x_prior = np.concatenate((x_labeled_prior, x_unlabeled_prior))
-            platform_predictions = steering_params * steering_vector + np.diag(np.ones(agent_num) - steering_params) @ x_prior
-        x_zero = np.diag(np.ones(agent_num) - platform_params) @ x_star + platform_params * platform_predictions 
-        x_temp = copy.deepcopy(x_zero)
+                x_temp = peer_params * x_zero + np.diag(np.ones(agent_num) - peer_params) @ np.diag(degs_inv) @ weight_mat @ x_temp
+
+            
+            whole_record[:, t+1] = copy.deepcopy(x_temp)
+            x_labeled_prior = copy.deepcopy(x_temp[:n])
+            x_unlabeled_prior = copy.deepcopy(x_temp[n:])
+    else:
+        coef_mat = np.diag(np.ones(agent_num))
         for k in range(fj_steps):
+            # note in codes, alpha is 1-alpha, adjustment is made in ploting 
+            coef_mat = np.diag(peer_params) @ np.diag(np.ones(agent_num)) + np.diag(np.ones(agent_num) - peer_params) @ np.diag(degs_inv) @ weight_mat @ coef_mat                
 
-            x_temp = peer_params * x_zero + np.diag(np.ones(agent_num) - peer_params) @ np.diag(degs_inv) @ weight_mat @ x_temp
+        # directly use explicit equilibrium 
+        whole_record = np.linalg.inv(np.diag(np.ones(agent_num)) - np.diag(platform_params) @ coef_mat) @ coef_mat @ np.diag(np.ones(agent_num) - platform_params) @ x_star 
 
-        
-        whole_record[:, t+1] = copy.deepcopy(x_temp)
-        x_labeled_prior = copy.deepcopy(x_temp[:n])
-        x_unlabeled_prior = copy.deepcopy(x_temp[n:])
     return whole_record
 
 
 
 
-def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled, test_sus, enforced_sus):
+def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled, test_sus, enforced_sus, approximated_equilibrium):
     
     agent_num = len(innate_opinions)
     fj_K = 100
@@ -506,8 +568,12 @@ def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_f
 
     steer_strength = np.zeros(agent_num)
     results_folder = "pokec_dataset/results/"
-    if os.path.exists(results_folder + model_name + "_" + test_sus + str(int(10*enforced_sus)) + "_equilibrium" + str(retrain_T) + ".pk"):
-        with open(results_folder + model_name + "_" + test_sus + str(int(10*enforced_sus)) + "_equilibrium" + str(retrain_T) + ".pk", "rb") as f:
+    if approximated_equilibrium:
+        filename = results_folder + model_name + "_" + test_sus + str(int(10*enforced_sus)) + "_equilibrium" + str(retrain_T) + ".pk"
+    else:
+        filename = results_folder + model_name + "_" + test_sus + str(int(10*enforced_sus)) + "_equilibrium_explicit" + str(retrain_T) + ".pk"
+    if os.path.exists(filename):
+        with open(filename, "rb") as f:
             perform_equilibrium = pickle.load(f)
 
     else:
@@ -516,19 +582,23 @@ def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_f
                                             peer_params=peer_sus, steering_params=steer_strength, 
                                             steering_vector=None, fj_steps=fj_K, retrain_steps=retrain_T, 
                                             x_star=innate_opinions, policy='sl', model_name=model_name, 
-                                            X_features_labeled=X_features_labeled, X_features_unlabeled=X_features_unlabeled)
+                                            X_features_labeled=X_features_labeled, X_features_unlabeled=X_features_unlabeled, approximated_equilibrium=approximated_equilibrium)
 
-        interval_num = retrain_T
-        heatmap_res1 = np.zeros((agent_num, interval_num+1))
-        heatmap_res1[:, 0] = copy.deepcopy(x_initial)
-        for k in range(interval_num):
-            heatmap_res1[:, k+1] = copy.deepcopy(equilibrium_opinions[:, (k+1)*int(equilibrium_opinions.shape[1]/interval_num)])
+        if approximated_equilibrium:
+            interval_num = retrain_T
+            heatmap_res1 = np.zeros((agent_num, interval_num+1))
+            heatmap_res1[:, 0] = copy.deepcopy(x_initial)
+            for k in range(interval_num):
+                heatmap_res1[:, k+1] = copy.deepcopy(equilibrium_opinions[:, (k+1)*int(equilibrium_opinions.shape[1]/interval_num)])
 
 
-        x = np.arange(1, agent_num+1)
-        FJ_equilibrium = heatmap_res1[:, 1]
-        perform_equilibrium = heatmap_res1[:, -1]
-        with open(results_folder + model_name + "_" + test_sus + str(int(10*enforced_sus)) + "_equilibrium" + str(retrain_T) + ".pk", "wb") as f:
+            x = np.arange(1, agent_num+1)
+            FJ_equilibrium = heatmap_res1[:, 1]
+            perform_equilibrium = heatmap_res1[:, -1]
+        else:
+            perform_equilibrium = equilibrium_opinions
+
+        with open(filename, "wb") as f:
             pickle.dump(perform_equilibrium, f)
     
    
@@ -536,43 +606,55 @@ def run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_f
 
     return performative_std 
     
-def run_sus_var(test_sus, innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled):
+def run_sus_var(test_sus, innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled, approximated_equilibrium):
 
     enforced_sus = np.arange(0.0, 1.1, 0.1)
     variances = np.zeros(len(enforced_sus))
     for i in range(len(enforced_sus)):
         temp_sus = enforced_sus[i]
         
-        variances[i] = run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled, test_sus, temp_sus)
+        variances[i] = run_opinion_dynamics(innate_opinions, network_lcc, nodelist, model_name, X_features_labeled, X_features_unlabeled, test_sus, temp_sus, approximated_equilibrium)
         variances[i] = variances[i] ** 2
-    with open("pokec_dataset/results/variance_" + model_name + "_" + test_sus + ".pk", "wb") as f:
-        pickle.dump(variances, f)
+    if approximated_equilibrium:
+        with open("pokec_dataset/results/variance_" + model_name + "_" + test_sus + "_explicit.pk", "wb") as f:
+            pickle.dump(variances, f)
+    else:
+        with open("pokec_dataset/results/variance_" + model_name + "_" + test_sus + ".pk", "wb") as f:
+            pickle.dump(variances, f)
     
 
-def create_plot():
+def create_plot(approximated_equilibrium):
 
     param_folder = "pokec_dataset/parametric_params/"
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
 
     enforced_sus = np.arange(0.0, 1.1, 0.1)
-    models = ["perfect", "ridge", "neural_net", "mean"]
-    labels = ["Perfect", "OLS", "MLP", "Mean"]
+    if approximated_equilibrium:
+       
+        models = ["perfect", "ridge", "neural_net", "mean"]
+        labels = ["Perfect", "OLS", "MLP", "Mean"]
+    else:
+        models = ["perfect"]
+        labels = ["Perfect"]
     
     fig, ax = plt.subplots()
     
     for i in range(len(models)):
         with open("pokec_dataset/results/variance_" + models[i] + "_" + "platform" + ".pk", "rb") as f:
             variances = pickle.load(f)
-            
 
-        ax.plot(enforced_sus, variances, linewidth=1.5, label=labels[i], color=colors[i], linestyle="-")
+        ax.plot(enforced_sus, variances, linewidth=1.5, label=labels[i], color=colors[i], linestyle="-", marker="o")
     ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
+    ax.set_xticks(enforced_sus)
     ax.set_xlabel(r"Platform susceptibility $\beta$", fontsize=18)
     ax.set_ylabel(r"Var($x_{PS}$)", fontsize=18)
     ax.tick_params(axis="y", labelsize=12)
     ax.tick_params(axis="x", labelsize=12)
     ax.legend(loc="lower left", frameon=False, fontsize=15)
-    plt.savefig(param_folder + "platform_variance_sl.pdf", bbox_inches='tight')
+    if approximated_equilibrium:
+        plt.savefig(param_folder + "platform_variance_sl.pdf", bbox_inches='tight')
+    else:
+        plt.savefig(param_folder + "platform_variance_sl_explicit.pdf", bbox_inches='tight')
 
 
     fig, ax = plt.subplots()
@@ -581,18 +663,22 @@ def create_plot():
         with open("pokec_dataset/results/variance_" + models[i] + "_" + "peer" + ".pk", "rb") as f:
             variances = pickle.load(f)
 
-        ax.plot(1-enforced_sus, variances, linewidth=1.5, label=labels[i], color=colors[i], linestyle="-")
+        ax.plot(1-enforced_sus, variances, linewidth=1.5, label=labels[i], color=colors[i], linestyle="-", marker="o")
 
 
     ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
+    ax.set_xticks(enforced_sus)
     ax.set_xlabel(r"Peer susceptibility $\alpha$", fontsize=18)
-
     ax.set_ylabel(r"Var($x_{PS}$)", fontsize=18)
     ax.tick_params(axis="y", labelsize=12)
     ax.tick_params(axis="x", labelsize=12)
 
     ax.legend(loc="upper right", frameon=False, fontsize=15)
-    plt.savefig(param_folder + "peer_variance_sl.pdf", bbox_inches='tight')
+    if approximated_equilibrium:
+        plt.savefig(param_folder + "peer_variance_sl.pdf", bbox_inches='tight')
+    else:
+        plt.savefig(param_folder + "peer_variance_sl_explicit.pdf", bbox_inches='tight')
+
 
 
 
@@ -661,7 +747,6 @@ def main():
 
     
     
-    # if os.path.exists("pokec_dataset/labled_feature_matrix_" + target_column + "_False" + ".pk"): 
     if os.path.exists("pokec_dataset/labeled_feature_matrix_" + target_column + "_" + str(include_graph_features) + ".pk"):
         print("Loading features")
         with open("pokec_dataset/labeled_feature_matrix_" + target_column + "_" + str(include_graph_features) + ".pk", "rb") as f:
@@ -684,15 +769,26 @@ def main():
     # We assume the platform susceptibilities are homogeneous
     # study the relationship between variance in equilibrium and susceptibilities for a real-world (non-regular) network
     
-    
+    # approximate x_{PS} with finite K and finite T
+    approximated_equilibrium = False 
     adjust_plot = True
-    if adjust_plot:
-        create_plot()
-    else:
-        for model_name in ["perfect", "mean", "ridge", "neural_net"]:
-            for test_sus in ["platform", "peer"]:
-                run_sus_var(test_sus, innate_opinions, network_lcc, df["user_id"].values, model_name, X_features_labeled, X_features_unlabeled)
     
+    if adjust_plot:
+        create_plot(approximated_equilibrium)
+    else:
+        if approximated_equilibrium:
+            print("Running with approximated equilibrium")
+            for model_name in ["perfect", "mean", "ridge", "neural_net"]:
+                for test_sus in ["platform", "peer"]:
+                    run_sus_var(test_sus, innate_opinions, network_lcc, df["user_id"].values, model_name, X_features_labeled, X_features_unlabeled, approximated_equilibrium)
+        else:
+            print("Running with explicit equilibrium")
+            for model_name in ["perfect"]:
+                for test_sus in ["platform", "peer"]:
+                    run_sus_var(test_sus, innate_opinions, network_lcc, df["user_id"].values, model_name, X_features_labeled, X_features_unlabeled, approximated_equilibrium)
+       
+        create_plot(approximated_equilibrium)
+        
     
     
 
