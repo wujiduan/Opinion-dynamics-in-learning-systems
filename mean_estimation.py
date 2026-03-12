@@ -170,13 +170,16 @@ def main():
 
     innate_original = np.array(y_label + y_unlabel_label, dtype=float)
     agent_num = len(innate_original)
+    innate_original = np.random.uniform(0.0, 1.0, size=agent_num)
 
     platform_sus = load_or_create_platform_sus(agent_num, param_folder)
     peer_sus = load_or_create_peer_sus(agent_num, param_folder)
     steer_strength = np.zeros(agent_num)
 
-    rng = np.random.default_rng(2026)
+    rng = np.random.default_rng(2046)
     stubborn_idx = int(rng.integers(low=n, high=agent_num))
+    innate_original[stubborn_idx] = 0.0
+
 
     peer_sus_modified = peer_sus.copy()
     # in paper alpha=0 is equivalent to set it to be 1.0 here
@@ -186,14 +189,18 @@ def main():
     labeled_override = max(1, int(0.1 * n))
     override_idx = rng.choice(np.arange(n), size=labeled_override, replace=False)
     innate_modified[override_idx] = 1.0
-
-    retrain_T = 30
+    with open(param_folder / f"innate_opinions.txt", "w") as f:
+        for x in innate_original:
+            f.write(str(x) + "\n")
+    print("innate opinions:", innate_original)
+    retrain_T = 5
     fj_K = 100
     nodelist = df["user_id"].values
 
 
     labels = {"mean": "Mean", "perfect": "Perfect", "ridge": "OLS", "neural_net": "MLP"}
-    for model_name in ["perfect", "mean", "ridge", "neural_net"]:
+    # "perfect", 
+    for model_name in ["mean", "ridge", "neural_net"]:
         if os.path.exists(results_folder / f"{model_name}_sl_modified_stubborn_whole_record{retrain_T}.pk"):
             print("Results already exist. Skipping simulation.")
             with open(results_folder / f"{model_name}_sl_modified_stubborn_whole_record{retrain_T}.pk", "rb") as f:
@@ -254,14 +261,19 @@ def main():
             x,
             stubborn_path,
             color="tab:blue",
-            label=labels[model_name] + r" $\tilde{x}^*$",
+            label=labels[model_name] + r" $\tilde{x}^*$", 
+            marker="o",
+            markersize=3,
         )
         plt.plot(
             x,
             original_path,
             color="tab:orange",
-            label=labels[model_name] + r" $x^*$",
+            label=labels[model_name] + r" $x^*$", 
+            marker="o",
+            markersize=3,
         )
+        
 
         plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
         plt.xlabel(r"Retraining step $t$", fontsize=18)
